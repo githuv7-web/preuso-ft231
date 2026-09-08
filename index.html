@@ -88,7 +88,6 @@
 </div>
 
 <script>
-  // Tu URL de Google Apps Script vinculada
   const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbwGme4VFPZ5o9vfdwzeQz7afHXMSLpd5FOYjD79naXDbqbpP6QVaa2TQWoAp48VRVK8hA/exec";
 
   const todasLasPreguntas = {
@@ -283,18 +282,13 @@
     }
   }
 
-  // Registrador de Service Worker
+  // Registro del Service Worker externo oficial
   if ('serviceWorker' in navigator) {
-    const swCode = `
-      const CACHE_NAME = 'ft231-v3';
-      self.addEventListener('install', e => self.skipWaiting());
-      self.addEventListener('activate', e => self.clients.claim());
-      self.addEventListener('fetch', e => {
-        e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
-      });
-    `;
-    const blob = new Blob([swCode], { type: 'application/javascript' });
-    navigator.serviceWorker.register(URL.createObjectURL(blob));
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .then(reg => console.log('SW instalado correctamente'))
+        .catch(err => console.error('Error registrando SW:', err));
+    });
   }
 
   actualizarEstado();
