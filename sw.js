@@ -63,7 +63,6 @@
 
     <div id="seccionInspeccion" class="oculto">
       <h3 style="margin-top:25px; border-bottom:2px solid #ccc; padding-bottom:5px;">INSPECCIÓN</h3>
-
       <div id="preguntasDinamicas"></div>
 
       <label style="margin-top:20px;">Estado General Máquina *</label>
@@ -89,7 +88,7 @@
 
 <script>
 
-  const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbw45sBbjO1kvnV-p49YLu2sHuaA0p9spuF3LYXchKqx2yQKrZSbz_Pwwhnf1981hZNpsg/exec";
+  const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbzfRJHZZLfMm_wF6Kyx95pYFuyu4LaqoczOi_Yv5N5kBaDoxQRB0x6wsLF8inYUQB9dOg/exec";
 
   const todasLasPreguntas = {
     "1. LUCES": {
@@ -225,7 +224,9 @@
     const placaBox = document.getElementById('placa');
     placaBox.innerHTML = '<option value="">Seleccione...</option>';
     if (sel && maquinasYPlacas[sel]) {
-      maquinasYPlacas[sel].forEach(p => { placaBox.innerHTML += `<option value="${p}">${p}</option>`; });
+      maquinasYPlacas[sel].forEach(p => {
+        placaBox.innerHTML += `<option value="${p}">${p}</option>`;
+      });
       document.getElementById('contenedorPlacas').classList.remove('oculto');
       document.getElementById('seccionInspeccion').classList.remove('oculto');
     } else {
@@ -248,7 +249,7 @@
     document.getElementById('contador').innerText = pendientes.length;
   }
 
-  window.addEventListener('online', actualizarEstado);
+  window.addEventListener('online',  actualizarEstado);
   window.addEventListener('offline', actualizarEstado);
 
   function getBase64Comprimido(file, cb) {
@@ -258,14 +259,17 @@
       const img = new Image();
       img.onload = function() {
         const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 800;
-        let width = img.width;
+        const MAX_WIDTH = 600;
+        let width  = img.width;
         let height = img.height;
-        if (width > MAX_WIDTH) { height = Math.round((height * MAX_WIDTH) / width); width = MAX_WIDTH; }
-        canvas.width = width;
+        if (width > MAX_WIDTH) {
+          height = Math.round((height * MAX_WIDTH) / width);
+          width  = MAX_WIDTH;
+        }
+        canvas.width  = width;
         canvas.height = height;
         canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-        cb(canvas.toDataURL('image/jpeg', 0.6));
+        cb(canvas.toDataURL('image/jpeg', 0.4));
       };
       img.src = e.target.result;
     };
@@ -276,12 +280,11 @@
     e.preventDefault();
     const btn = document.getElementById('btnEnviar');
     btn.innerText = "Guardando localmente...";
-    btn.disabled = true;
+    btn.disabled  = true;
 
     getBase64Comprimido(document.getElementById('fotoHorometro').files[0], function(b64Horo) {
       getBase64Comprimido(document.getElementById('fotoNovedad').files[0], function(b64Novedad) {
         try {
-
           let dictRespuestas = {};
           for (const cat in todasLasPreguntas) {
             const items = todasLasPreguntas[cat];
@@ -317,7 +320,7 @@
 
           document.getElementById('formularioOffline').reset();
           btn.innerText = "Guardar Inspección";
-          btn.disabled = false;
+          btn.disabled  = false;
           mostrarPlacas();
           alert('¡Inspección guardada localmente!');
           actualizarEstado();
@@ -325,7 +328,7 @@
         } catch (error) {
           alert('Error al guardar datos: ' + error.message);
           btn.innerText = "Guardar Inspección";
-          btn.disabled = false;
+          btn.disabled  = false;
         }
       });
     });
@@ -342,23 +345,33 @@
     sincronizando = true;
 
     try {
-      await fetch(URL_APPS_SCRIPT, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'text/plain' },
-        body: JSON.stringify(locales[0])
+      const respuesta = await fetch(URL_APPS_SCRIPT, {
+        method:   'POST',
+        redirect: 'follow',
+        headers:  { 'Content-Type': 'text/plain;charset=utf-8' },
+        body:     JSON.stringify(locales[0])
       });
 
-      let pendientes = JSON.parse(localStorage.getItem('reg_maq') || '[]');
-      pendientes.shift();
-      localStorage.setItem('reg_maq', JSON.stringify(pendientes));
-      sincronizando = false;
-      actualizarEstado();
-      sincronizarDatosGuardados();
+      const texto = await respuesta.text();
+      let json;
+      try { json = JSON.parse(texto); }
+      catch(e) { json = { exito: false, error: 'Respuesta no JSON: ' + texto }; }
+
+      if (json && json.exito) {
+        let pendientes = JSON.parse(localStorage.getItem('reg_maq') || '[]');
+        pendientes.shift();
+        localStorage.setItem('reg_maq', JSON.stringify(pendientes));
+        actualizarEstado();
+        sincronizando = false;
+        sincronizarDatosGuardados();
+      } else {
+        console.error('Servidor respondió con error:', json);
+        sincronizando = false;
+      }
 
     } catch (err) {
+      console.error('Error al sincronizar:', err);
       sincronizando = false;
-      console.error("Error al sincronizar:", err);
     }
   }
 
@@ -371,6 +384,7 @@
   }
 
   actualizarEstado();
+
 </script>
 </body>
 </html>
